@@ -77,14 +77,14 @@ def plot_results(results_count, algo_metrics):
     results_metrics[u'基准收益'] = "%.2f%%" %(bench_return*100)
     results_metrics[u'基准年化收益'] = "%.2f%%" %(bench_year_return*100)
     results_metrics[u'最大回撤'] = "%.2f%%" %(max_drawdown*100)
-    results_metrics['alpha'] = np.round(algo_metrics['alpha'],2)
-    results_metrics['beta'] = np.round(algo_metrics['beta'],2)
-    results_metrics['sharpe'] = np.round(algo_metrics['sharpe'],2)
-    results_metrics['algorithm volatility'] = np.round(algo_metrics['algorithm_volatility'],2)
-    results_metrics['benchmark volatility'] = np.round(algo_metrics['benchmark_volatility'],2)
-    results_metrics['downside risk'] = np.round(algo_metrics['downside_risk'],2)
-    results_metrics['sortino'] = np.round(algo_metrics['sortino'],2)
-    results_metrics['information'] = np.round(algo_metrics['information'],2)
+    results_metrics['alpha'] = np.round(alpha,2)
+    results_metrics['beta'] = np.round(beta,2)
+    results_metrics['sharpe'] = np.round(sharpe,2)
+    results_metrics['algorithm volatility'] = np.round(algorithm_volatility,2)
+    results_metrics['benchmark volatility'] = np.round(benchmark_volatility,2)
+    results_metrics['downside risk'] = np.round(downside_risk,2)
+    results_metrics['sortino'] = np.round(sortino,2)
+    results_metrics['information'] = np.round(information,2)
     
     #return fig
     return results_metrics
