@@ -127,7 +127,7 @@ class DBProxy:
     
     def _get_sn_ts(self, startdate, enddate):
         sql = "select {} from finchina.TQ_QT_SKDAILYPRICE as A inner join finchina.TQ_SK_BASICINFO as B on A.SECODE=B.SECODE \
-        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE=101".format(DEFAULT_FIELDS, startdate, enddate)
+        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE='101'".format(DEFAULT_FIELDS, startdate, enddate)
         #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         print sql
         #print sql2
@@ -199,20 +199,23 @@ class DBProxy:
         return res
         
     def _get_index_ts(self, startdate, enddate):
-        sql = "select {} from finchina.TQ_QT_INDEX where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
-         and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         sql2 = "select SECODE from yunneng.INDEX_UNIVERSE"
-        print sql
         print sql2
-        res = self.doQuery(sql)
-        res = np.array(res)
-        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
         res2 = self.doQuery(sql2)
         res2 = np.array(res2)
         res2 = pd.DataFrame(res2, columns = ['sid'])
-        mask = [i for i in range(len(res)) if res.ix[i,'sid'] in res2['sid'].values]
-        res = res.ix[mask,:]
+        strlist = res2['sid'].values.tolist()
+        strlist = str(strlist)[1:-1]
+        sql = "select {} from finchina.TQ_QT_INDEX as A where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
+         and TRADEDATE<=DATE('{}') and A.SECODE in ({})".format(DEFAULT_FIELDS, startdate, enddate, strlist)
+        print sql
+        res = self.doQuery(sql)
+        res = np.array(res)
+        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
+
+        #mask = [i for i in range(len(res)) if res.ix[i,'sid'] in res2['sid'].values]
+        #res = res.ix[mask,:]
         res.fillna(np.nan, inplace = True)
         res.replace(0, np.nan, inplace = True)
         res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
@@ -236,7 +239,7 @@ class DBProxy:
         mindex = pd.MultiIndex.from_tuples(tuples, names=['dt', 'sid'])
         res.index = mindex
         res = res.sortlevel(level = 0, axis = 0)
-        print "index future series successfully queried."
+        print "index series successfully queried."
         return res
         
     def _get_dividends(self, startdate, enddate):
