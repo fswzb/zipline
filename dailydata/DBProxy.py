@@ -14,9 +14,9 @@ from datetime import datetime
 import pytz
 import numpy as np
 
-CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
-DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, SECODE, TRADEDATE'
-
+CONFIG = {'port':14356, 'user':'cdb_outerroot','passwd':'R8t!5ql@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
+#CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
+DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, A.SECODE, TRADEDATE'
 def getLogger():
     logger = logging.getLogger("DBProxy")
     if len(logger.handlers) == 0:
@@ -126,8 +126,8 @@ class DBProxy:
                 print "MySQL Error: %s" % str(err)
     
     def _get_sn_ts(self, startdate, enddate):
-        sql = "select {} from finchina.TQ_QT_SKDAILYPRICE where TCLOSE<>0 and TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}') \
-        and EXCHANGE in ('001002', '001003')".format(DEFAULT_FIELDS, startdate, enddate)
+        sql = "select {} from finchina.TQ_QT_SKDAILYPRICE as A inner join finchina.TQ_SK_BASICINFO as B on A.SECODE=B.SECODE \
+        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE=101".format(DEFAULT_FIELDS, startdate, enddate)
         #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         print sql
         #print sql2
@@ -195,27 +195,24 @@ class DBProxy:
         mindex = pd.MultiIndex.from_tuples(tuples, names=['dt', 'sid'])
         res.index = mindex
         res = res.sortlevel(level = 0, axis = 0)
-        print "index future series successfully queried."
+        print "index series successfully queried."
         return res
         
     def _get_index_ts(self, startdate, enddate):
+        sql = "select {} from finchina.TQ_QT_INDEX where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
+         and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         sql2 = "select SECODE from yunneng.INDEX_UNIVERSE"
-        print sql2
-        res2 = self.doQuery(sql2)
-        res2 = np.array(res2)
-        res2 = pd.DataFrame(res2, columns = ['sid'])
-        strlist = res2['sid'].values.tolist()
-        strlist = str(strlist)[1:-1]
-        sql = "select {} from finchina.TQ_QT_INDEX where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
-         and TRADEDATE<=DATE('{}') and SECODE in ({})".format(DEFAULT_FIELDS, startdate, enddate, strlist)
         print sql
+        print sql2
         res = self.doQuery(sql)
         res = np.array(res)
         res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
-
-        #mask = [i for i in range(len(res)) if res.ix[i,'sid'] in res2['sid'].values]
-        #res = res.ix[mask,:]
+        res2 = self.doQuery(sql2)
+        res2 = np.array(res2)
+        res2 = pd.DataFrame(res2, columns = ['sid'])
+        mask = [i for i in range(len(res)) if res.ix[i,'sid'] in res2['sid'].values]
+        res = res.ix[mask,:]
         res.fillna(np.nan, inplace = True)
         res.replace(0, np.nan, inplace = True)
         res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
@@ -239,13 +236,13 @@ class DBProxy:
         mindex = pd.MultiIndex.from_tuples(tuples, names=['dt', 'sid'])
         res.index = mindex
         res = res.sortlevel(level = 0, axis = 0)
-        print "index series successfully queried."
+        print "index future series successfully queried."
         return res
         
     def _get_dividends(self, startdate, enddate):
-        sql = "select A.PUBLISHDATE, A.PUBLISHDATE, A.SECODE, A.SYMBOL, DIVITYPE, EQURECORDDATE, XDRDATE, \
+        sql = "select A.PUBLISHDATE, A.PUBLISHDATE, A.SECODE, A.SECODE, A.SYMBOL, DIVITYPE, EQURECORDDATE, XDRDATE, \
         AFTTAXCASHDV, PROBONUSRT, TRANADDRT, BONUSRT, ISNEWEST from finchina.TQ_SK_DIVIDENTS as A inner join \
-        finchina.TQ_SK_BASICINFO as B where A.COMPCODE=B.COMPCODE AND B.EXCHANGE in ('001002', '001003') AND \
+        finchina.TQ_SK_BASICINFO as B  where A.COMPCODE=B.COMPCODE AND B.EXCHANGE in ('001002', '001003') AND \
         A.EQURECORDDATE BETWEEN '{}' AND '{}' AND A.ISNEWEST = 1".format(startdate, enddate)
         print sql
         res = self.doQuery(sql)
@@ -276,7 +273,29 @@ class DBProxy:
         res = res.sortlevel(level = 0, axis = 0)  
         print "dividend data successfully queried."
         return res
-    
+        
+    def _get_fundamentals2(self, field_dict, table):
+        field, T = field_dict.items()[0]
+        sql = "select A.FIRSTPUBLISHDATE, A.ENDDATE, B.SECODE, A.{} from finchina.{} as A inner join finchina.TQ_SK_BASICINFO as B \
+        on A.COMPCODE = B.COMPCODE where A.REPORTTYPE = 3 and B.EXCHANGE in ('001002', '001003')".format(field, table)  
+        print sql
+        res = self.doQuery(sql)
+        res = np.array(res)
+        res = pd.DataFrame(res, columns = ['dt', 'rprtdate', 'sid', field])
+        
+        mask = [i for i, x in enumerate(res[field]) if x is not None]
+        res.ix[mask, field] = res[field][mask].apply(T)
+
+        mask = [i for i, x in enumerate(res['dt']) if x is not None]
+        res.ix[mask,'dt'] = res['dt'][mask].apply(lambda x: pytz.utc.localize(datetime.strptime(x,r'%Y%m%d')))
+        
+        mask = [i for i, x in enumerate(res['rprtdate']) if x is not None]
+        #res.ix[mask,'rprtdate'] = res['rprtdate'][mask].apply(lambda x: pytz.utc.localize(datetime.strptime(x,r'%Y%m%d')))
+        res.sort(columns = ['dt'], inplace = True)
+        res.index = res.sid.copy()
+        res.drop_duplicates(subset=['sid','rprtdate'], inplace = True)
+        print "fundamental data successfully queried."
+        return res    
 
     def _get_fundamentals(self, field_dict, table):
         field, T = field_dict.items()[0]
@@ -461,7 +480,7 @@ class DBProxy:
          for i, row in csv_data.iterrows():
              print row[0]
              row[0] = (datetime.strptime(row[0], r'%Y/%m/%d')).strftime(r"%Y%m%d")  
-             sql = "INSERT INTO finchina.TREASURIES(TRADEDATE) VALUES('%s')"%row[0]
+             sql = "INSERT INTO finchina.TRDDATES(TRADEDATE) VALUES('%s')"%row[0]
              print sql
              cursor.execute(sql)
          self.commit()
@@ -517,13 +536,14 @@ if __name__ == "__main__":
     #res = dbProxy._get_sn_ts(field_list,'20140101','20140131')
     #dbProxy._import_csv(r"E:\Anaconda\Lib\site-packages\zipline_china\zipline\cache\MarketConfig\treasuries.csv")
     startdate = '20141101'
-    enddate = '20150331'
+    enddate = '20141101'
     benchmark = '2070000061'
     #csv = r"D:\Data\MarketConfig\benchmark_daily2.CSV"
     #tradingdates = dbProxy._get_trading_dates('20020101', datetime.today().strftime(r"%Y%m%d"))
     #dbProxy._import_csv(r'D:\Data\MarketConfig\dates.csv')
     #res = dbProxy._get_market_data('000001.SH', startdate = "20020101", enddate = datetime.today().strftime(r"%Y%m%d"))
-    res = dbProxy._get_sn_ts(startdate,enddate)
+    #res = dbProxy._get_sn_ts(startdate,enddate)
+    netincome = dbProxy._get_fundamentals2({'NPGRT':float}, 'TQ_FIN_PROINDICDATA')
     #res = dbProxy._get_sn_ts(startdate, enddate)
     #res = dbProxy._get_dividends(startdate, enddate)
     #tradingdates = dbProxy._get_trading_dates(startdate, enddate)
@@ -534,5 +554,5 @@ if __name__ == "__main__":
     #datasource = dbProxy._get_sn_ts_optional({'TOTMKTCAP': float}, 'tq_qt_skdailyprice', startdate, enddate)
     #dbProxy._import_index_universe(r'E:\yunneng\index_universe.csv')
     #index_universe = dbProxy._get_index_ts(startdate, enddate)
-    df = pd.DataFrame(np.array(dbProxy.doQuery("select * from yunneng.index_universe")))
+    #df = pd.DataFrame(np.array(dbProxy.doQuery("select * from yunneng.Index_Universe")))
     
