@@ -16,7 +16,7 @@ import numpy as np
 
 CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
 #CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
-DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TRADEDATE'
+DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, A.SECODE, TRADEDATE'
 def getLogger():
     logger = logging.getLogger("DBProxy")
     if len(logger.handlers) == 0:
