@@ -491,7 +491,12 @@ class TradingAlgorithm(object):
                 self.sim_params.period_start = source['dt'].ix[0]
                 self.sim_params.period_end = source['dt'].ix[-1]
         first_open = self.sim_params.first_open.strftime(r"%Y%m%d")
-        initial_sids = set(dbProxy._get_sn_ts(first_open, first_open)['sid'])
+        if self.security_type is "stock" or self.security_type is 0:
+            initial_sids = set(dbProxy._get_sn_ts(first_open, first_open)['sid'])
+        elif self.security_type is "index" or self.security_type is 1:
+            initial_sids = set(dbProxy._get_index_ts(first_open, first_open)['sid'])
+        elif self.security_type is "index_futures" or self.security_type is 2:
+            initial_sids = set(dbProxy._get_index_futures(first_open, first_open)['sid'])
         self.sim_params.sids = initial_sids
         self.sim_params.active_sids = set()
         # Changing period_start and period_close might require updating
