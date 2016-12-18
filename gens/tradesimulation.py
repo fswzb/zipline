@@ -108,6 +108,8 @@ class AlgorithmSimulator(object):
             
             for date, snapshot in stream_in:
                 print 'date:', date
+#                if date == pytz.utc.localize(datetime.datetime(2016,4,11)):
+#                    print "debug"
                 self.simulation_dt = date
                 self.algo.on_dt_changed(date)
                 #max_bar_count = algo.history_container.largest_specs[algo.history_container.largest_specs.keys()[0]].bar_count

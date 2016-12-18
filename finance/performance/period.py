@@ -216,6 +216,14 @@ class PerformancePeriod(object):
             position = self.positions[stock]
 
             position.amount += share_count
+            dividend = dividend_frame[dividend_frame['sid']==stock]
+            ratio = dividend['ratio'].values[0]
+            if ratio > 1.0:
+                position.last_sale_price = position.last_sale_price/ratio 
+            #in order to adjust last sale price as well, to prevent the case that 
+            #the next market trading date is not a trading date for this stock
+            #resulting in false return calculation
+            
             self.ensure_position_index(stock)
             self._position_amounts[stock] = position.amount
             self._position_last_sale_prices[stock] = \

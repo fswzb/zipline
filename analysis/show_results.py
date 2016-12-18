@@ -92,4 +92,16 @@ def plot_results(results_count, algo_metrics):
     #      alpha    beta    sharpe    algorithm_volatility    '
     #print '%.2f%%        %.2f%%          %.2f%%        %.2f%%        %.2f%% '\
     #    %(algo_return*100, year_return*100, bench_return*100, bench_year_return*100, max_drawdown*100)
+ 
+
+class visualize:
+    def __init__(self, results, algo):
+        self.results = results
+        self.algo = algo
+        
+    def __call__(self):   
+        self.results_count = count(self.results, list(self.algo.perf_tracker.cumulative_risk_metrics.benchmark_returns))
+        self.results_metrics = plot_results(self.results_count, self.algo.perf_tracker.cumulative_risk_metrics.metrics.iloc[-1])
+        return self.results_metrics
+        
         
