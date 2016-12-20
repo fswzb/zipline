@@ -783,6 +783,14 @@ class TradingAlgorithm(object):
         universe_copy = copy(self.sim_params.active_sids)
         return universe_copy
         
+    @api_method    
+    def get_tradingdates(self):
+        """
+        Returns the trading dates up to self.datetime.
+        """
+        tradingdates = copy(self.trading_client.env.trading_days)
+        return tradingdates
+        
     def set_transact(self, transact):
         """
         Set the method that will be called to create a
