@@ -789,7 +789,8 @@ class TradingAlgorithm(object):
         Returns the trading dates up to self.datetime.
         """
         tradingdates = copy(self.trading_client.env.trading_days)
-        return tradingdates
+        tradingdates_copy = tradingdates[tradingdates <= self.datetime].copy()
+        return tradingdates_copy
         
     def set_transact(self, transact):
         """
