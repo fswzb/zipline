@@ -347,7 +347,7 @@ class DBProxy:
         type_list = field_dict.values()
         fields = ','.join(field_list)
         sql = "select TRADEDATE, B.SECODE, A.{} from finchina.{} as A inner join finchina.TQ_SK_BASICINFO as B on A.SECODE = B.SECODE \
-        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and B.EXCHANGE in ('001002', '001003') ".format(fields, table, startdate, enddate) 
+        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE='101' ".format(fields, table, startdate, enddate) 
         print sql
         res = self.doQuery(sql)
         res = np.array(res)
