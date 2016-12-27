@@ -879,11 +879,11 @@ class TradingAlgorithm(object):
         if sid in self.portfolio.positions:
             current_position = self.portfolio.positions[sid].amount
             current_pending_orders = self.get_open_orders(sid)
-            if current_pending_orders:
-                current_pending_position = reduce(lambda x, y: x+y, [(order.amount - order.filled) for order in current_pending_orders])
-            else:
-                current_pending_position = 0
-            req_shares = target - current_position - current_pending_position
+                #current_pending_position = reduce(lambda x, y: x+y, [(order.amount - order.filled) for order in current_pending_orders])
+            for pending_order in current_pending_orders:
+                self.cancel_order(pending_order)
+                
+            req_shares = target - current_position
             return self.order(sid, req_shares,
                               limit_price=limit_price,
                               stop_price=stop_price,

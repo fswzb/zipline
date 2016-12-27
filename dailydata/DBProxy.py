@@ -16,7 +16,7 @@ import numpy as np
 
 CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
 #CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
-DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, A.SECODE, TRADEDATE'
+DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, TURNRATE, A.SECODE, TRADEDATE'
 def getLogger():
     logger = logging.getLogger("DBProxy")
     if len(logger.handlers) == 0:
@@ -127,7 +127,7 @@ class DBProxy:
     
     def _get_sn_ts(self, startdate, enddate):
         sql = "select {} from finchina.TQ_QT_SKDAILYPRICE as A inner join finchina.TQ_SK_BASICINFO as B on A.SECODE=B.SECODE \
-        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE='101'".format(DEFAULT_FIELDS, startdate, enddate)
+        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE=101".format(DEFAULT_FIELDS, startdate, enddate)
         #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         print sql
         #print sql2
@@ -135,7 +135,7 @@ class DBProxy:
         res = np.array(res)
         #res2 = self.doQuery(sql2)
         #res2 = np.array(res2)
-        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
+        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
         #res2 = pd.DataFrame(res2, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
         #res = res.append(res2)
         res.fillna(np.nan, inplace = True)
@@ -156,6 +156,10 @@ class DBProxy:
         
         res.ix[:,'ret'] = res['ret'].apply(float)
         
+        res.ix[:,'mktcap'] = res['mktcap'].apply(float)
+                
+        res.ix[:,'turnover'] = res['turnover'].apply(float)
+        
         arrays = [res['dt'].values, res['sid'].values]
         tuples = list(zip(*arrays))
         mindex = pd.MultiIndex.from_tuples(tuples, names=['dt', 'sid'])
@@ -171,7 +175,7 @@ class DBProxy:
         print sql
         res = self.doQuery(sql)
         res = np.array(res)
-        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
+        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
         res.fillna(np.nan, inplace = True)
         res.replace(0, np.nan, inplace = True)
         res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
@@ -189,6 +193,10 @@ class DBProxy:
         res.ix[:,'volume'] = res['volume'].apply(float) 
         
         res.ix[:,'ret'] = res['ret'].apply(float)
+
+        res.ix[:,'mktcap'] = res['mktcap'].apply(float)
+                
+        res.ix[:,'turnover'] = res['turnover'].apply(float)
         
         arrays = [res['dt'].values, res['sid'].values]
         tuples = list(zip(*arrays))
@@ -199,23 +207,20 @@ class DBProxy:
         return res
         
     def _get_index_ts(self, startdate, enddate):
+        sql = "select {} from finchina.TQ_QT_INDEX where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
+         and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         sql2 = "select SECODE from yunneng.INDEX_UNIVERSE"
+        print sql
         print sql2
+        res = self.doQuery(sql)
+        res = np.array(res)
+        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
         res2 = self.doQuery(sql2)
         res2 = np.array(res2)
         res2 = pd.DataFrame(res2, columns = ['sid'])
-        strlist = res2['sid'].values.tolist()
-        strlist = str(strlist)[1:-1]
-        sql = "select {} from finchina.TQ_QT_INDEX as A where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
-         and TRADEDATE<=DATE('{}') and A.SECODE in ({})".format(DEFAULT_FIELDS, startdate, enddate, strlist)
-        print sql
-        res = self.doQuery(sql)
-        res = np.array(res)
-        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
-
-        #mask = [i for i in range(len(res)) if res.ix[i,'sid'] in res2['sid'].values]
-        #res = res.ix[mask,:]
+        mask = [i for i in range(len(res)) if res.ix[i,'sid'] in res2['sid'].values]
+        res = res.ix[mask,:]
         res.fillna(np.nan, inplace = True)
         res.replace(0, np.nan, inplace = True)
         res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
@@ -234,18 +239,22 @@ class DBProxy:
         
         res.ix[:,'ret'] = res['ret'].apply(float)
         
+        res.ix[:,'mktcap'] = res['mktcap'].apply(float)
+                
+        res.ix[:,'turnover'] = res['turnover'].apply(float)
+        
         arrays = [res['dt'].values, res['sid'].values]
         tuples = list(zip(*arrays))
         mindex = pd.MultiIndex.from_tuples(tuples, names=['dt', 'sid'])
         res.index = mindex
         res = res.sortlevel(level = 0, axis = 0)
-        print "index series successfully queried."
+        print "index future series successfully queried."
         return res
         
     def _get_dividends(self, startdate, enddate):
         sql = "select A.PUBLISHDATE, A.PUBLISHDATE, A.SECODE, A.SECODE, A.SYMBOL, DIVITYPE, EQURECORDDATE, XDRDATE, \
         AFTTAXCASHDV, PROBONUSRT, TRANADDRT, BONUSRT, ISNEWEST from finchina.TQ_SK_DIVIDENTS as A inner join \
-        finchina.TQ_SK_BASICINFO as B  where A.COMPCODE=B.COMPCODE AND B.EXCHANGE in ('001002', '001003') AND \
+        finchina.TQ_SK_BASICINFO as B  where A.COMPCODE=B.COMPCODE AND B.SETYPE='101' AND \
         A.EQURECORDDATE BETWEEN '{}' AND '{}' AND A.ISNEWEST = 1".format(startdate, enddate)
         print sql
         res = self.doQuery(sql)
@@ -280,7 +289,7 @@ class DBProxy:
     def _get_fundamentals2(self, field_dict, table):
         field, T = field_dict.items()[0]
         sql = "select A.FIRSTPUBLISHDATE, A.ENDDATE, B.SECODE, A.{} from finchina.{} as A inner join finchina.TQ_SK_BASICINFO as B \
-        on A.COMPCODE = B.COMPCODE where A.REPORTTYPE = 3 and B.EXCHANGE in ('001002', '001003')".format(field, table)  
+        on A.COMPCODE = B.COMPCODE where A.REPORTTYPE = 3 and B.SETYPE='101'".format(field, table)  
         print sql
         res = self.doQuery(sql)
         res = np.array(res)
@@ -303,7 +312,7 @@ class DBProxy:
     def _get_fundamentals(self, field_dict, table):
         field, T = field_dict.items()[0]
         sql = "select A.PUBLISHDATE, A.ENDDATE, B.SECODE, A.{} from finchina.{} as A inner join finchina.TQ_SK_BASICINFO as B \
-        on A.COMPCODE = B.COMPCODE where A.REPORTTYPE = 1 and B.EXCHANGE in ('001002', '001003')".format(field, table)  
+        on A.COMPCODE = B.COMPCODE where A.REPORTTYPE = 1 and B.SETYPE='101'".format(field, table)  
         print sql
         res = self.doQuery(sql)
         res = np.array(res)
@@ -324,7 +333,7 @@ class DBProxy:
         return res
         
     def _get_delist(self, startdate, enddate):
-        sql = "select DELISTDATE, SECODE from finchina.TQ_SK_BASICINFO where EXCHANGE in ('001002', '001003')\
+        sql = "select DELISTDATE, SECODE from finchina.TQ_SK_BASICINFO where SETYPE='101'\
         and DELISTDATE > DATE('19900101') and DELISTDATE >= DATE('{}') and DELISTDATE <= DATE('{}')".format(startdate, enddate)
         print sql
         res = self.doQuery(sql)
@@ -364,6 +373,11 @@ class DBProxy:
         res = res.sortlevel(level = 0, axis = 0)
         res.drop_duplicates(inplace = True)
         print "optional data successfully queried."
+        return res
+    
+    def _get_sn_ts_local(self, startdate, enddate):
+        res = pd.read_pickle(r"E:\analysis\sn_ts_04_16.pkl")
+        res = res.ix[startdate:enddate]
         return res
         
     def _get_market_data(self, benchmk_secode, startdate = "20020101", enddate = datetime.today().strftime(r"%Y%m%d")):
