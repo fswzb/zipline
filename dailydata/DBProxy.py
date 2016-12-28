@@ -18,6 +18,7 @@ HOST = socket.gethostname()
 CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
 #CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
 DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, TURNRATE, A.SECODE, TRADEDATE'
+INDEX_DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, SECODE, TRADEDATE'
 def getLogger():
     logger = logging.getLogger("DBProxy")
     if len(logger.handlers) == 0:
@@ -72,6 +73,7 @@ class DBProxy:
         cnx = None
         try:
             cnx = MySQLdb.connect(**self.config)
+            cnx.ping(True)
         except MySQLdb.Error as err:
             try:
                 print "MySQL Error [%d]: %s" % (err.args[0], err.args[1])
@@ -208,20 +210,28 @@ class DBProxy:
         return res
         
     def _get_index_ts(self, startdate, enddate):
-        sql = "select {} from finchina.TQ_QT_INDEX where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
-         and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
-        #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
         sql2 = "select SECODE from yunneng.INDEX_UNIVERSE"
-        print sql
+        #print sql
         print sql2
-        res = self.doQuery(sql)
-        res = np.array(res)
-        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
         res2 = self.doQuery(sql2)
         res2 = np.array(res2)
         res2 = pd.DataFrame(res2, columns = ['sid'])
-        mask = [i for i in range(len(res)) if res.ix[i,'sid'] in res2['sid'].values]
-        res = res.ix[mask,:]
+        strlist = res2['sid'].values.tolist()
+        strlist = str(strlist)[1:-1]
+        sql = "select {} from finchina.TQ_QT_INDEX where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
+          and TRADEDATE<=DATE('{}') and SECODE in ({})".format(INDEX_DEFAULT_FIELDS, startdate, enddate, strlist)
+        print sql
+        res = self.doQuery(sql)
+        res = np.array(res)
+        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'sid', 'dt'])
+        #res = self.doQuery(sql)
+        #res = np.array(res)
+        #res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
+        #res2 = self.doQuery(sql2)
+        #res2 = np.array(res2)
+        #res2 = pd.DataFrame(res2, columns = ['sid'])
+        #mask = [i for i in range(len(res)) if res.ix[i,'sid'] in res2['sid'].values]
+        #res = res.ix[mask,:]
         res.fillna(np.nan, inplace = True)
         res.replace(0, np.nan, inplace = True)
         res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
@@ -242,7 +252,7 @@ class DBProxy:
         
         res.ix[:,'mktcap'] = res['mktcap'].apply(float)
                 
-        res.ix[:,'turnover'] = res['turnover'].apply(float)
+        #res.ix[:,'turnover'] = res['turnover'].apply(float)
         
         arrays = [res['dt'].values, res['sid'].values]
         tuples = list(zip(*arrays))
