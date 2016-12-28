@@ -389,7 +389,7 @@ class DBProxy:
     def _get_sn_ts_local(self, startdate, enddate):
         startdate = pytz.utc.localize(datetime.strptime(startdate,r'%Y%m%d'))
         enddate = pytz.utc.localize(datetime.strptime(enddate,r'%Y%m%d'))
-        if HOST == 'Toby-PC':
+        if HOST != 'node10':
             res = pd.read_pickle(r"E:\analysis\stock_data.pkl")
         else:
             res = pd.read_pickle(r"/home/yunneng/data/stock_data.pkl")    
@@ -399,7 +399,7 @@ class DBProxy:
     def _get_index_ts_local(self, startdate, enddate):
         startdate = pytz.utc.localize(datetime.strptime(startdate,r'%Y%m%d'))
         enddate = pytz.utc.localize(datetime.strptime(enddate,r'%Y%m%d'))
-        if HOST == 'Toby-PC':
+        if HOST != 'node10':
             res = pd.read_pickle(r"E:\analysis\index_data.pkl")
         else:
             res = pd.read_pickle(r"/home/yunneng/data/index_data.pkl")    
