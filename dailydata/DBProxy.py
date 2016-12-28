@@ -377,6 +377,8 @@ class DBProxy:
         return res
     
     def _get_sn_ts_local(self, startdate, enddate):
+        startdate = pytz.utc.localize(datetime.strptime(startdate,r'%Y%m%d'))
+        enddate = pytz.utc.localize(datetime.strptime(enddate,r'%Y%m%d'))
         if HOST == 'Toby-PC':
             res = pd.read_pickle(r"E:\analysis\stock_data.pkl")
         else:
@@ -385,6 +387,8 @@ class DBProxy:
         return res
     
     def _get_index_ts_local(self, startdate, enddate):
+        startdate = pytz.utc.localize(datetime.strptime(startdate,r'%Y%m%d'))
+        enddate = pytz.utc.localize(datetime.strptime(enddate,r'%Y%m%d'))
         if HOST == 'Toby-PC':
             res = pd.read_pickle(r"E:\analysis\index_data.pkl")
         else:
@@ -564,15 +568,15 @@ if __name__ == "__main__":
     #field_list = ['TOTMKTCAP']
     #res = dbProxy._get_sn_ts(field_list,'20140101','20140131')
     #dbProxy._import_csv(r"E:\Anaconda\Lib\site-packages\zipline_china\zipline\cache\MarketConfig\treasuries.csv")
-    startdate = '20141101'
-    enddate = '20141101'
+    startdate = '20160101'
+    enddate = '20161130'
     benchmark = '2070000061'
     #csv = r"D:\Data\MarketConfig\benchmark_daily2.CSV"
     #tradingdates = dbProxy._get_trading_dates('20020101', datetime.today().strftime(r"%Y%m%d"))
     #dbProxy._import_csv(r'D:\Data\MarketConfig\dates.csv')
     #res = dbProxy._get_market_data('000001.SH', startdate = "20020101", enddate = datetime.today().strftime(r"%Y%m%d"))
-    #res = dbProxy._get_sn_ts(startdate,enddate)
-    netincome = dbProxy._get_fundamentals2({'NPGRT':float}, 'TQ_FIN_PROINDICDATA')
+    res4 = dbProxy._get_sn_ts(startdate,enddate)
+    #netincome = dbProxy._get_fundamentals2({'NPGRT':float}, 'TQ_FIN_PROINDICDATA')
     #res = dbProxy._get_sn_ts(startdate, enddate)
     #res = dbProxy._get_dividends(startdate, enddate)
     #tradingdates = dbProxy._get_trading_dates(startdate, enddate)
