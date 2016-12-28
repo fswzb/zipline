@@ -447,14 +447,14 @@ class TradingAlgorithm(object):
 
         """
         if self.security_type is "stock" or self.security_type is 0:
-            sn_ts = dbProxy._get_sn_ts(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end) 
+            sn_ts = dbProxy._get_sn_ts_local(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end) 
             delist = dbProxy._get_delist(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
             dividend = dbProxy._get_dividends(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
             regular_source = DataFrameSource(sn_ts)
             delist_source = DataFrameSource(delist)
             dividends_source = DataFrameSource(dividend)
         elif self.security_type is "index" or self.security_type is 1:
-            sn_ts = dbProxy._get_index_ts(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end) 
+            sn_ts = dbProxy._get_index_ts_local(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end) 
             regular_source = DataFrameSource(sn_ts)
         elif self.security_type is "index_futures" or self.security_type is 2:
             sn_ts = dbProxy._get_index_futures(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end) 
@@ -492,9 +492,9 @@ class TradingAlgorithm(object):
                 self.sim_params.period_end = source['dt'].ix[-1]
         first_open = self.sim_params.first_open.strftime(r"%Y%m%d")
         if self.security_type is "stock" or self.security_type is 0:
-            initial_sids = set(dbProxy._get_sn_ts(first_open, first_open)['sid'])
+            initial_sids = set(dbProxy._get_sn_ts_local(first_open, first_open)['sid'])
         elif self.security_type is "index" or self.security_type is 1:
-            initial_sids = set(dbProxy._get_index_ts(first_open, first_open)['sid'])
+            initial_sids = set(dbProxy._get_index_ts_local(first_open, first_open)['sid'])
         elif self.security_type is "index_futures" or self.security_type is 2:
             initial_sids = set(dbProxy._get_index_futures(first_open, first_open)['sid'])
         self.sim_params.sids = initial_sids

@@ -6,6 +6,7 @@ Created on Wed Aug 10 22:14:33 2016
 """
 
 import sys
+import socket
 import MySQLdb
 import traceback
 import logging
@@ -13,7 +14,7 @@ import pandas as pd
 from datetime import datetime
 import pytz
 import numpy as np
-
+HOST = socket.gethostname()
 CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
 #CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
 DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, TURNRATE, A.SECODE, TRADEDATE'
@@ -376,7 +377,18 @@ class DBProxy:
         return res
     
     def _get_sn_ts_local(self, startdate, enddate):
-        res = pd.read_pickle(r"E:\analysis\sn_ts_04_16.pkl")
+        if HOST == 'Toby-PC':
+            res = pd.read_pickle(r"E:\analysis\stock_data.pkl")
+        else:
+            res = pd.read_pickle(r"/home/yunneng/data/stock_data.pkl")    
+        res = res.ix[startdate:enddate]
+        return res
+    
+    def _get_index_ts_local(self, startdate, enddate):
+        if HOST == 'Toby-PC':
+            res = pd.read_pickle(r"E:\analysis\index_data.pkl")
+        else:
+            res = pd.read_pickle(r"/home/yunneng/data/index_data.pkl")    
         res = res.ix[startdate:enddate]
         return res
         
