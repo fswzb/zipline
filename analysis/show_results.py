@@ -14,19 +14,21 @@ def drawdown(xs):
     dd = (np.maximum.accumulate(xs) - xs)/np.maximum.accumulate(xs) # drawdown for each point in time
     return dd
 
-def count(results, benchmark_returns):
-    results_count = pd.DataFrame(index=results.index)
-    results_count['algorithm_returns'] = results['returns']
-    results_count['benchmark_returns'] = benchmark_returns
-    results_count['cumulative_returns'] = (results_count['algorithm_returns']+1).cumprod()-1.
-    results_count['benchmark_cumulative_returns'] = (results_count['benchmark_returns']+1).cumprod()-1.
-    results_count['drawdowns'] = drawdown(results_count['cumulative_returns']+1)
+def count(algo):
+    cumulative_risk_metrics = algo.perf_tracker.cumulative_risk_metrics
+    results_count = pd.DataFrame()
+    results_count['algorithm_returns'] = cumulative_risk_metrics.algorithm_returns
+    results_count['benchmark_returns'] = cumulative_risk_metrics.benchmark_returns
+    results_count['algorithm_cumulative_returns'] = cumulative_risk_metrics.algorithm_cumulative_returns
+    results_count['benchmark_cumulative_returns'] = cumulative_risk_metrics.benchmark_cumulative_returns
+    results_count['drawdowns'] = cumulative_risk_metrics.drawdowns
     return results_count
 
-def plot_results(results_count, algo_metrics):
+def plot_results(algo):
+    results_count = count(algo)
     dates = results_count.index
     algorithm_returns = results_count['algorithm_returns']
-    cumulative_returns = results_count['cumulative_returns']
+    algorithm_cumulative_returns = results_count['algorithm_cumulative_returns']
     benchmark_cumulative_returns = results_count['benchmark_cumulative_returns']
     drawdowns = results_count['drawdowns']
 
@@ -34,7 +36,7 @@ def plot_results(results_count, algo_metrics):
     yticks = mtick.FormatStrFormatter('%.0f%%')
         
     ax1 = plt.subplot(3, 1, 1)
-    plt.plot(dates, cumulative_returns*100, lw=1.5, label='algorithm')
+    plt.plot(dates, algorithm_cumulative_returns*100, lw=1.5, label='algorithm')
     plt.plot(dates, benchmark_cumulative_returns*100,'r', lw=1.5, label='benchmark')
     ax1.yaxis.set_major_formatter(yticks) 
     plt.grid(True)
@@ -56,12 +58,18 @@ def plot_results(results_count, algo_metrics):
     plt.xlabel('date')
     plt.ylabel('drawdown')
         
-    #algo_metrics = algo.perf_tracker.cumulative_risk_metrics.metrics.iloc[-1]
-    algo_return = cumulative_returns[-1]
+def results_metrics(algo):
+    results_count = count(algo)
+    dates = results_count.index
+    cumulative_risk_metrics = algo.perf_tracker.cumulative_risk_metrics
+    algo_metrics = algo.perf_tracker.cumulative_risk_metrics.metrics.iloc[-1]
+    
+    algo_return =  results_count['algorithm_cumulative_returns'][-1]
+    bench_return = results_count['benchmark_cumulative_returns'][-1]
     year_return = (1+algo_return)**(250./len(dates))-1
-    bench_return = benchmark_cumulative_returns[-1]
     bench_year_return = (1+bench_return)**(250./len(dates))-1
-    max_drawdown = np.max(drawdowns)
+    max_drawdown = cumulative_risk_metrics.max_drawdown
+    
     alpha = algo_metrics['alpha']
     beta = algo_metrics['beta']
     sharpe = algo_metrics['sharpe']
@@ -86,22 +94,20 @@ def plot_results(results_count, algo_metrics):
     results_metrics['sortino'] = np.round(sortino,2)
     results_metrics['information'] = np.round(information,2)
     
-    #return fig
     return results_metrics
     #print u'策略收益    策略年化收益     基准收益    基准年化收益    最大回撤    \
     #      alpha    beta    sharpe    algorithm_volatility    '
     #print '%.2f%%        %.2f%%          %.2f%%        %.2f%%        %.2f%% '\
     #    %(algo_return*100, year_return*100, bench_return*100, bench_year_return*100, max_drawdown*100)
- 
 
 class visualize:
-    def __init__(self, results, algo):
-        self.results = results
+    def __init__(self, algo):
         self.algo = algo
         
     def __call__(self):   
-        self.results_count = count(self.results, list(self.algo.perf_tracker.cumulative_risk_metrics.benchmark_returns))
-        self.results_metrics = plot_results(self.results_count, self.algo.perf_tracker.cumulative_risk_metrics.metrics.iloc[-1])
+        self.results_count = count(self.algo)
+        self.results_plot = plot_results(self.algo)
+        self.results_metrics = results_metrics(self.algo)
         return self.results_metrics
         
         
