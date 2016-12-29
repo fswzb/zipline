@@ -484,11 +484,10 @@ class SimulationParameters(object):
         if self.warming_period is None or self.warming_period is 0:
             return self.calculate_first_open(env)
         else:
-            one_day = datetime.timedelta(days=1)
             ndays = 0
             real_open = self.first_open
-            while (not env.is_trading_day(real_open)) or (ndays < self.warming_period):
-                real_open = real_open - one_day
+            while ndays < self.warming_period:
+                real_open = real_open.previous_trading_day()
                 ndays += 1
             return real_open
             
