@@ -299,7 +299,7 @@ class MySlippage(SlippageModel):
         # volume needs to be the multiple of 100
         cur_volume = min(math.floor(event.available_volume/100)*100, abs(order.open_amount))
 
-        if cur_volume < 100:
+        if cur_volume < 1:
             return
         
         # tally the current amount into our total amount ordered.

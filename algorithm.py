@@ -623,7 +623,8 @@ class TradingAlgorithm(object):
         # amount or closer to zero.
         # E.g. 3.9999 -> 4.0; 5.5 -> 5.0; -5.5 -> -5.0
         #amount = int(round_if_near_integer(amount))
-        amount = round_to_nearest_100(amount)
+        if not self.sellout:
+            amount = round_to_nearest_100(amount)
 
         # Raises a ZiplineError if invalid parameters are detected.
         valid = self.validate_order_params(sid,
@@ -910,7 +911,11 @@ class TradingAlgorithm(object):
         order for the difference between the target value and the
         current value.
         """
-
+        if target == 0.0:
+            self.sellout = True
+        else:
+            self.sellout = False
+            
         last_price = self.trading_client.current_data[sid].price
         if np.isnan(last_price) or np.allclose(last_price, 0):
             # Don't place an order
@@ -935,6 +940,11 @@ class TradingAlgorithm(object):
 
         Note that target must expressed as a decimal (0.50 means 50\%).
         """
+        if target == 0.0:
+            self.sellout = True
+        else:
+            self.sellout = False
+            
         target_value = self.portfolio.portfolio_value * target
         return self.order_target_value(sid, target_value,
                                        limit_price=limit_price,
