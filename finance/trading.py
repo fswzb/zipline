@@ -487,7 +487,7 @@ class SimulationParameters(object):
             ndays = 0
             real_open = self.first_open
             while ndays < self.warming_period:
-                real_open = real_open.previous_trading_day()
+                real_open = env.previous_trading_day(real_open)
                 ndays += 1
             return real_open
             
