@@ -877,6 +877,11 @@ class TradingAlgorithm(object):
         order for the difference between the target number of shares and the
         current number of shares.
         """
+        if target == 0.0:
+            self.sellout = True
+        else:
+            self.sellout = False
+            
         if sid in self.portfolio.positions:
             current_position = self.portfolio.positions[sid].amount
             current_pending_orders = self.get_open_orders(sid)
