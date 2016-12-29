@@ -7,7 +7,6 @@ Created on Wed Aug 10 22:14:33 2016
 
 import sys
 import socket
-import MySQLdb
 import traceback
 import logging
 import pandas as pd
@@ -15,11 +14,19 @@ from datetime import datetime
 import pytz
 import numpy as np
 HOST = socket.gethostname()
+try:
+    import MySQLdb
+    if HOST == 'node10':
+        CONFIG = {'port':3306, 'user':'yunneng','passwd':'Yun~Neng|5ql', 'host':'localhost', 'db':'yunneng'}
+    else:
+        CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
+except:
+    import mysql.connector as MySQLdb
+    if HOST == 'node10':
+        CONFIG = {'port':3306, 'user':'yunneng','password':'Yun~Neng|5ql', 'host':'localhost', 'database':'yunneng'}
+    else:
+        CONFIG = {'port':14356, 'user':'yunneng','password':'yunneng@NKU', 'host':'123.206.48.254', 'database':'yunneng'}
 
-if HOST == 'node10':
-    CONFIG = {'port':3306, 'user':'yunneng','passwd':'Yun~Neng|5ql', 'host':'localhost', 'db':'yunneng'}
-else:
-    CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
 #CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
 DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, TURNRATE, A.SECODE, TRADEDATE'
 INDEX_DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, SECODE, TRADEDATE'
@@ -589,7 +596,7 @@ if __name__ == "__main__":
     #tradingdates = dbProxy._get_trading_dates('20020101', datetime.today().strftime(r"%Y%m%d"))
     #dbProxy._import_csv(r'D:\Data\MarketConfig\dates.csv')
     #res = dbProxy._get_market_data('000001.SH', startdate = "20020101", enddate = datetime.today().strftime(r"%Y%m%d"))
-    res4 = dbProxy._get_sn_ts(startdate,enddate)
+    #res4 = dbProxy._get_sn_ts(startdate,enddate)
     #netincome = dbProxy._get_fundamentals2({'NPGRT':float}, 'TQ_FIN_PROINDICDATA')
     #res = dbProxy._get_sn_ts(startdate, enddate)
     #res = dbProxy._get_dividends(startdate, enddate)
