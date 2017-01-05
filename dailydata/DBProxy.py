@@ -17,15 +17,15 @@ HOST = socket.gethostname()
 try:
     import MySQLdb
     if HOST == 'node10':
-        CONFIG = {'port':3306, 'user':'yunneng','passwd':'Yun~Neng|5ql', 'host':'localhost', 'db':'yunneng'}
+        CONFIG = {'port':3306, 'user':'yunneng','passwd':'Yun~Neng|5ql', 'host':'localhost', 'db':'yunneng', 'charset':'utf8'}
     else:
-        CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
+        CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng', 'charset':'utf8'}
 except:
     import mysql.connector as MySQLdb
     if HOST == 'node10':
-        CONFIG = {'port':3306, 'user':'yunneng','password':'Yun~Neng|5ql', 'host':'localhost', 'database':'yunneng'}
+        CONFIG = {'port':3306, 'user':'yunneng','password':'Yun~Neng|5ql', 'host':'localhost', 'database':'yunneng', 'charset':'utf8'}
     else:
-        CONFIG = {'port':14356, 'user':'yunneng','password':'yunneng@NKU', 'host':'123.206.48.254', 'database':'yunneng'}
+        CONFIG = {'port':14356, 'user':'yunneng','password':'yunneng@NKU', 'host':'123.206.48.254', 'database':'yunneng', 'charset':'utf8'}
 
 #CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
 DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, TURNRATE, A.SECODE, TRADEDATE'
