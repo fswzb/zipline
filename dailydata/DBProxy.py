@@ -5,6 +5,7 @@ Created on Wed Aug 10 22:14:33 2016
 @author: Toby
 """
 
+import os
 import sys
 import socket
 import traceback
@@ -13,23 +14,29 @@ import pandas as pd
 from datetime import datetime
 import pytz
 import numpy as np
+
+
 HOST = socket.gethostname()
 try:
     import MySQLdb
+    print "Use MySQLdb"
     if HOST == 'node10':
         CONFIG = {'port':3306, 'user':'yunneng','passwd':'Yun~Neng|5ql', 'host':'localhost', 'db':'yunneng'}
     else:
         CONFIG = {'port':14356, 'user':'yunneng','passwd':'yunneng@NKU', 'host':'123.206.48.254', 'db':'yunneng'}
 except:
     import mysql.connector as MySQLdb
+    print "Use MySQL.Connector"
     if HOST == 'node10':
         CONFIG = {'port':3306, 'user':'yunneng','password':'Yun~Neng|5ql', 'host':'localhost', 'database':'yunneng'}
     else:
         CONFIG = {'port':14356, 'user':'yunneng','password':'yunneng@NKU', 'host':'123.206.48.254', 'database':'yunneng'}
 
-#CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
+# CONFIG = {'user':'root','passwd':'R8t!5ql@NKU', 'host':'7.168.102.238', 'db':'yunneng'}
 DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, TURNRATE, A.SECODE, TRADEDATE'
 INDEX_DEFAULT_FIELDS = 'TCLOSE, THIGH, TLOW, TOPEN, PCHG, VOL, TOTMKTCAP, SECODE, TRADEDATE'
+
+
 def getLogger():
     logger = logging.getLogger("DBProxy")
     if len(logger.handlers) == 0:
@@ -57,10 +64,11 @@ def report(function):
 report._indent = 0
 
 class DBProxy:
-    def __init__(self, config = CONFIG):
+    def __init__(self, config = CONFIG, path=None):
         self.config = config
         self.cnx = None
         self.logger = getLogger()
+        self.local_path = path
         
     def __del__(self):
         self.close()
@@ -182,6 +190,86 @@ class DBProxy:
         print "stock series successfully queried."
         return res
 
+    def _get_sn_ts_rebalance(self, startdate, enddate):
+        sql = "select {} from finchina.TQ_QT_SKDAILYPRICE as A inner join finchina.TQ_SK_BASICINFO as B on A.SECODE=B.SECODE \
+        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE=101".format(DEFAULT_FIELDS, startdate, enddate)
+        #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
+        print sql
+        #print sql2
+        res = self.doQuery(sql)
+        res = np.array(res)
+        #res2 = self.doQuery(sql2)
+        #res2 = np.array(res2)
+        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
+        #res2 = pd.DataFrame(res2, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
+        #res = res.append(res2)
+        res.fillna(np.nan, inplace = True)
+        res.replace(0, np.nan, inplace = True)
+        res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
+        res.index = range(len(res))
+        res.ix[:,'dt'] = res['dt'].apply(lambda x: pytz.utc.localize(datetime.strptime(x,r'%Y%m%d')))
+        
+        res.ix[:,'price'] = res['price'].apply(float)    
+
+        res.ix[:,'high'] = res['high'].apply(float)
+        
+        res.ix[:,'low'] = res['low'].apply(float)
+        
+        res.ix[:,'open'] = res['open'].apply(float) 
+
+        res.ix[:,'volume'] = res['volume'].apply(float) 
+        
+        res.ix[:,'ret'] = res['ret'].apply(float)
+        
+        res.ix[:,'mktcap'] = res['mktcap'].apply(float)
+                
+        res.ix[:,'turnover'] = res['turnover'].apply(float)
+        
+        res_dict = dict()
+        for field in ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover']:
+            res_trunc = res.ix[:, ['sid','dt',field]]
+            res_p = res_trunc.pivot(index = 'dt', columns = 'sid', values = 'field')
+            res_dict[field] = res_p
+            
+        return res_dict
+        
+    def _get_sn_ts_ex(self, startdate, enddate):
+        """
+        get stock time series with ex-dividend counterpart
+        :param startdate: str, start date in 'YYYYMMDD'
+        :param enddate: str, end date in 'YYYYMMDD'
+        :return: pandas.DataFrame, multi-index ('dt' and 'sid'), columns (DEFAULT_FIELDS and adjusted ones)
+        """
+        raw_price = self._get_sn_ts(startdate, enddate)
+        qry = "select A.SECODE, A.BEGINDATE, A.ENDDATE, A.LTDXDY from finchina.TQ_SK_XDRY as A " \
+              "inner join finchina.TQ_SK_BASICINFO as B on A.SECODE=B.SECODE " \
+              "where A.ENDDATE>=DATE('{}') and A.BEGINDATE<=DATE('{}') and B.SETYPE=101"\
+            .format(startdate, enddate)
+        adj_factors = self.doQuery(qry)
+        adj_factors = pd.DataFrame(adj_factors, columns=['secode', 'startdate', 'enddate', 'factor'])
+        adj_factors['startdate'] = adj_factors['startdate'].apply(lambda x:
+                                                                  pytz.utc.localize(datetime.strptime(x, r'%Y%m%d')))
+        adj_factors['enddate'] = adj_factors['enddate'].apply(lambda x:
+                                                              pytz.utc.localize(datetime.strptime(x, r'%Y%m%d')))
+        adj_factors['factor'] = adj_factors['factor'].apply(float)
+        adj_factors.loc[:, 'factor'] = adj_factors.loc[:, 'factor']
+        adj_factors.dropna(inplace=True)
+        adj_factors = adj_factors[adj_factors['factor'] != 1.0]
+        raw_price[['price_ex', 'high_ex', 'low_ex', 'open_ex', 'volume_ex']] = \
+            raw_price[['price', 'high', 'low', 'open', 'volume']]
+        for i in adj_factors.index:
+            print i
+            secode = adj_factors['secode'].loc[i]
+            sdt = adj_factors['startdate'].loc[i]
+            edt = adj_factors['enddate'].loc[i]
+            factor = adj_factors['factor'].loc[i]
+            index_block = raw_price.loc(axis=0)[sdt: edt, secode].index
+            if len(index_block):
+                raw_price.loc[index_block, ['price_ex', 'high_ex', 'low_ex', 'open_ex']] = \
+                    raw_price.loc[index_block, ['price', 'high', 'low', 'open']].values / factor
+                raw_price.loc[index_block, 'volume_ex'] = raw_price.loc[index_block, 'volume'].values * factor
+        return raw_price
+
     def _get_index_futures(self, startdate, enddate):
         sql = "select {} from finchina.TQ_QT_SIFDAILYPRICE where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
          and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
@@ -222,7 +310,7 @@ class DBProxy:
         
     def _get_index_ts(self, startdate, enddate):
         sql2 = "select SECODE from yunneng.INDEX_UNIVERSE"
-        #print sql
+        # print sql
         print sql2
         res2 = self.doQuery(sql2)
         res2 = np.array(res2)
@@ -401,7 +489,7 @@ class DBProxy:
         startdate = pytz.utc.localize(datetime.strptime(startdate,r'%Y%m%d'))
         enddate = pytz.utc.localize(datetime.strptime(enddate,r'%Y%m%d'))
         if HOST != 'node10':
-            res = pd.read_pickle(r"E:\analysis\stock_data.pkl")
+            res = pd.read_pickle(os.path.join(self.local_path, "stock_data.pkl"))
         else:
             res = pd.read_pickle(r"/home/yunneng/data/stock_data.pkl")    
         res = res.ix[startdate:enddate]
@@ -411,7 +499,7 @@ class DBProxy:
         startdate = pytz.utc.localize(datetime.strptime(startdate,r'%Y%m%d'))
         enddate = pytz.utc.localize(datetime.strptime(enddate,r'%Y%m%d'))
         if HOST != 'node10':
-            res = pd.read_pickle(r"E:\analysis\index_data.pkl")
+            res = pd.read_pickle(os.path.join(self.local_path, "index_data.pkl"))
         else:
             res = pd.read_pickle(r"/home/yunneng/data/index_data.pkl")    
         res = res.ix[startdate:enddate]
@@ -445,50 +533,6 @@ class DBProxy:
         bm_returns = bm.drop(['dt', 'TCLOSE'], axis = 1)
         print "market data successfully queried."
         return (bm_returns, tr_curves)
-
-    def _get_sn_ts_rebalance(self, startdate, enddate):
-        sql = "select {} from finchina.TQ_QT_SKDAILYPRICE as A inner join finchina.TQ_SK_BASICINFO as B on A.SECODE=B.SECODE \
-        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE=101".format(DEFAULT_FIELDS, startdate, enddate)
-        #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
-        print sql
-        #print sql2
-        res = self.doQuery(sql)
-        res = np.array(res)
-        #res2 = self.doQuery(sql2)
-        #res2 = np.array(res2)
-        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
-        #res2 = pd.DataFrame(res2, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
-        #res = res.append(res2)
-        res.fillna(np.nan, inplace = True)
-        res.replace(0, np.nan, inplace = True)
-        res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
-        res.index = range(len(res))
-        res.ix[:,'dt'] = res['dt'].apply(lambda x: pytz.utc.localize(datetime.strptime(x,r'%Y%m%d')))
-        
-        res.ix[:,'price'] = res['price'].apply(float)    
-
-        res.ix[:,'high'] = res['high'].apply(float)
-        
-        res.ix[:,'low'] = res['low'].apply(float)
-        
-        res.ix[:,'open'] = res['open'].apply(float) 
-
-        res.ix[:,'volume'] = res['volume'].apply(float) 
-        
-        res.ix[:,'ret'] = res['ret'].apply(float)
-        
-        res.ix[:,'mktcap'] = res['mktcap'].apply(float)
-                
-        res.ix[:,'turnover'] = res['turnover'].apply(float)
-        
-        res_dict = dict()
-        for field in ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover']:
-            res_trunc = res.ix[:,['sid','dt',field]]
-            res_p = res_trunc.pivot(index='dt', columns='sid', values=field)
-            res_dict[field] = res_p
-        
-        print "stock series successfully queried."
-        return res_dict
                 
     def _get_trading_dates(self, startdate, enddate):
         sql1 = "select TRADEDATE from finchina.TQ_OA_TRDSCHEDULE where EXCHANGE = '001002' or EXCHANGE = '001003' \
