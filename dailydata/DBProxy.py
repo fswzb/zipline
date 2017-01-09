@@ -228,7 +228,7 @@ class DBProxy:
         res_dict = dict()
         for field in ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover']:
             res_trunc = res.ix[:, ['sid','dt',field]]
-            res_p = res_trunc.pivot(index = 'dt', columns = 'sid', values = 'field')
+            res_p = res_trunc.pivot(index = 'dt', columns = 'sid', values = field)
             res_dict[field] = res_p
             
         return res_dict
