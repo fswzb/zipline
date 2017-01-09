@@ -445,6 +445,50 @@ class DBProxy:
         bm_returns = bm.drop(['dt', 'TCLOSE'], axis = 1)
         print "market data successfully queried."
         return (bm_returns, tr_curves)
+
+    def _get_sn_ts_rebalance(self, startdate, enddate):
+        sql = "select {} from finchina.TQ_QT_SKDAILYPRICE as A inner join finchina.TQ_SK_BASICINFO as B on A.SECODE=B.SECODE \
+        where A.TRADEDATE>=DATE('{}') and A.TRADEDATE<=DATE('{}') and A.TCLOSE<>0 and B.SETYPE=101".format(DEFAULT_FIELDS, startdate, enddate)
+        #sql2= "select {} from finchina.TQ_QT_INDEX where TRADEDATE>=DATE('{}') and TRADEDATE<=DATE('{}')".format(DEFAULT_FIELDS, startdate, enddate)
+        print sql
+        #print sql2
+        res = self.doQuery(sql)
+        res = np.array(res)
+        #res2 = self.doQuery(sql2)
+        #res2 = np.array(res2)
+        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
+        #res2 = pd.DataFrame(res2, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
+        #res = res.append(res2)
+        res.fillna(np.nan, inplace = True)
+        res.replace(0, np.nan, inplace = True)
+        res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
+        res.index = range(len(res))
+        res.ix[:,'dt'] = res['dt'].apply(lambda x: pytz.utc.localize(datetime.strptime(x,r'%Y%m%d')))
+        
+        res.ix[:,'price'] = res['price'].apply(float)    
+
+        res.ix[:,'high'] = res['high'].apply(float)
+        
+        res.ix[:,'low'] = res['low'].apply(float)
+        
+        res.ix[:,'open'] = res['open'].apply(float) 
+
+        res.ix[:,'volume'] = res['volume'].apply(float) 
+        
+        res.ix[:,'ret'] = res['ret'].apply(float)
+        
+        res.ix[:,'mktcap'] = res['mktcap'].apply(float)
+                
+        res.ix[:,'turnover'] = res['turnover'].apply(float)
+        
+        res_dict = dict()
+        for field in ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover']:
+            res_trunc = res.ix[:,['sid','dt',field]]
+            res_p = res_trunc.pivot(index='dt', columns='sid', values=field)
+            res_dict[field] = res_p
+        
+        print "stock series successfully queried."
+        return res_dict
                 
     def _get_trading_dates(self, startdate, enddate):
         sql1 = "select TRADEDATE from finchina.TQ_OA_TRDSCHEDULE where EXCHANGE = '001002' or EXCHANGE = '001003' \
