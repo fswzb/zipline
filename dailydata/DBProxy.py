@@ -246,6 +246,7 @@ class DBProxy:
               "where A.ENDDATE>=DATE('{}') and A.BEGINDATE<=DATE('{}') and B.SETYPE=101"\
             .format(startdate, enddate)
         adj_factors = self.doQuery(qry)
+        adj_factors = np.array(adj_factors)
         adj_factors = pd.DataFrame(adj_factors, columns=['secode', 'startdate', 'enddate', 'factor'])
         adj_factors['startdate'] = adj_factors['startdate'].apply(lambda x:
                                                                   pytz.utc.localize(datetime.strptime(x, r'%Y%m%d')))

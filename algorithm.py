@@ -464,6 +464,7 @@ class TradingAlgorithm(object):
             regular_source = DataFrameSource(sn_ts)
             delist_source = DataFrameSource(delist)
             dividends_source = DataFrameSource(dividend)
+            del sn_ts
         elif self.security_type is "index" or self.security_type is 1:
             sn_ts = self.dbProxy._get_index_ts(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
             regular_source = DataFrameSource(sn_ts)
@@ -488,6 +489,7 @@ class TradingAlgorithm(object):
                 self.set_sources([regular_source, delist_source, dividends_source] + optional_source)
             else:
                 self.set_sources([regular_source] + optional_source)
+            del args
         else:
             if self.security_type is 'stock' or self.security_type is 0:
                 self.set_sources([regular_source, delist_source, dividends_source])
