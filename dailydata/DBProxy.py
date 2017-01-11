@@ -306,7 +306,7 @@ class DBProxy:
         mindex = pd.MultiIndex.from_tuples(tuples, names=['dt', 'sid'])
         res.index = mindex
         res = res.sortlevel(level = 0, axis = 0)
-        print "index series successfully queried."
+        print "index futures series successfully queried."
         return res
         
     def _get_index_ts(self, startdate, enddate):
@@ -321,7 +321,7 @@ class DBProxy:
         strlist = str(strlist)[1:-1]
         sql = "select {} from finchina.TQ_QT_INDEX where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
           and TRADEDATE<=DATE('{}') and SECODE in ({})".format(INDEX_DEFAULT_FIELDS, startdate, enddate, strlist)
-        print sql
+        #print sql
         res = self.doQuery(sql)
         res = np.array(res)
         res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'sid', 'dt'])
@@ -360,7 +360,7 @@ class DBProxy:
         mindex = pd.MultiIndex.from_tuples(tuples, names=['dt', 'sid'])
         res.index = mindex
         res = res.sortlevel(level = 0, axis = 0)
-        print "index future series successfully queried."
+        print "index series successfully queried."
         return res
         
     def _get_dividends(self, startdate, enddate):
@@ -495,6 +495,7 @@ class DBProxy:
         else:
             res = pd.read_pickle(r"/home/yunneng/data/stock_data.pkl")    
         res = res.ix[startdate:enddate]
+        print 'stock series successfully obtained from local pickle file.'
         return res
     
     def _get_index_ts_local(self, startdate, enddate):
@@ -505,6 +506,7 @@ class DBProxy:
         else:
             res = pd.read_pickle(r"/home/yunneng/data/index_data.pkl")    
         res = res.ix[startdate:enddate]
+        print 'index series successfully obtained from local pickle file.'
         return res
         
     def _get_market_data(self, benchmk_secode, startdate = "20020101", enddate = datetime.today().strftime(r"%Y%m%d")):
