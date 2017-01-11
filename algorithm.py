@@ -466,7 +466,10 @@ class TradingAlgorithm(object):
             dividends_source = DataFrameSource(dividend)
             del sn_ts
         elif self.security_type is "index" or self.security_type is 1:
-            sn_ts = self.dbProxy._get_index_ts(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
+            if self.use_local:
+                sn_ts = self.dbProxy._get_index_ts_local(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
+            else:
+                sn_ts = self.dbProxy._get_index_ts(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
             regular_source = DataFrameSource(sn_ts)
         elif self.security_type is "index_futures" or self.security_type is 2:
             sn_ts = self.dbProxy._get_index_futures(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)

@@ -316,6 +316,7 @@ class DBProxy:
         res2 = self.doQuery(sql2)
         res2 = np.array(res2)
         res2 = pd.DataFrame(res2, columns = ['sid'])
+        res2['sid'] = res2['sid'].apply(lambda x: x.encode("utf-8"))
         strlist = res2['sid'].values.tolist()
         strlist = str(strlist)[1:-1]
         sql = "select {} from finchina.TQ_QT_INDEX where TCLOSE<>0 and TRADEDATE>=DATE('{}')\
