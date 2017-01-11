@@ -74,7 +74,7 @@ from zipline.history.history_container import HistoryContainer
 from zipline.fundamentals.fundamentals import Fundamental
 from zipline.dailydata import DBProxy
 DEFAULT_CAPITAL_BASE = float("1.0e5")
-dbProxy = DBProxy.DBProxy()
+
 
 class TradingAlgorithm(object):
     """
@@ -168,7 +168,10 @@ class TradingAlgorithm(object):
             secode = kwargs.pop('benchmark')
         else:
             secode = None
-            
+        
+        self.use_local = kwargs.pop('use_local', False)
+        self.local_path = kwargs.pop('local_path', None)
+
         if 'fundamental_folder' in kwargs:
             self.fundamental_folder = kwargs.pop('fundamental_folder')
         else:
@@ -279,7 +282,11 @@ class TradingAlgorithm(object):
         if self._get_fundamentals is None:
             self._get_fundamentals = lambda x:None
 
-            
+        if self.local_path is not None:
+            self.dbProxy = DBProxy.DBProxy(path=self.local_path)
+        else:
+            self.dbProxy = DBProxy.DBProxy()
+
         # Alternative way of setting data_frequency for backwards
         # compatibility.
 
@@ -446,19 +453,22 @@ class TradingAlgorithm(object):
               Daily performance metrics such as returns, alpha etc.
 
         """
+        print "run..."
         if self.security_type is "stock" or self.security_type is 0:
-            sn_ts = dbProxy._get_sn_ts_local(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end) 
-            delist = dbProxy._get_delist(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
-            dividend = dbProxy._get_dividends(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
+            if self.use_local:
+                sn_ts = self.dbProxy._get_sn_ts_local(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
+            else:
+                sn_ts = self.dbProxy._get_sn_ts(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
+            delist = self.dbProxy._get_delist(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
+            dividend = self.dbProxy._get_dividends(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
             regular_source = DataFrameSource(sn_ts)
             delist_source = DataFrameSource(delist)
             dividends_source = DataFrameSource(dividend)
-            del sn_ts
         elif self.security_type is "index" or self.security_type is 1:
-            sn_ts = dbProxy._get_index_ts_local(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end) 
+            sn_ts = self.dbProxy._get_index_ts(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
             regular_source = DataFrameSource(sn_ts)
         elif self.security_type is "index_futures" or self.security_type is 2:
-            sn_ts = dbProxy._get_index_futures(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end) 
+            sn_ts = self.dbProxy._get_index_futures(self.sim_params.real_open.strftime("%Y%m%d"), self.period_end)
             regular_source = DataFrameSource(sn_ts)   
         else:
             print "Please specify proper security types: stock, index, index_futures!!"
@@ -474,7 +484,6 @@ class TradingAlgorithm(object):
             optional_source = []
             for source in args:
                 optional_source.append(DataFrameSource(source))
-            del args
             if self.security_type is 'stock' or self.security_type is 0:
                 self.set_sources([regular_source, delist_source, dividends_source] + optional_source)
             else:
@@ -494,11 +503,11 @@ class TradingAlgorithm(object):
                 self.sim_params.period_end = source['dt'].ix[-1]
         first_open = self.sim_params.first_open.strftime(r"%Y%m%d")
         if self.security_type is "stock" or self.security_type is 0:
-            initial_sids = set(dbProxy._get_sn_ts_local(first_open, first_open)['sid'])
+            initial_sids = set(self.dbProxy._get_sn_ts(first_open, first_open)['sid'])
         elif self.security_type is "index" or self.security_type is 1:
-            initial_sids = set(dbProxy._get_index_ts_local(first_open, first_open)['sid'])
+            initial_sids = set(self.dbProxy._get_index_ts(first_open, first_open)['sid'])
         elif self.security_type is "index_futures" or self.security_type is 2:
-            initial_sids = set(dbProxy._get_index_futures(first_open, first_open)['sid'])
+            initial_sids = set(self.dbProxy._get_index_futures(first_open, first_open)['sid'])
         self.sim_params.sids = initial_sids
         self.sim_params.active_sids = set()
         # Changing period_start and period_close might require updating
@@ -625,8 +634,7 @@ class TradingAlgorithm(object):
         # amount or closer to zero.
         # E.g. 3.9999 -> 4.0; 5.5 -> 5.0; -5.5 -> -5.0
         #amount = int(round_if_near_integer(amount))
-        if not self.sellout:
-            amount = round_to_nearest_100(amount)
+        amount = round_to_nearest_100(amount)
 
         # Raises a ZiplineError if invalid parameters are detected.
         valid = self.validate_order_params(sid,
@@ -879,11 +887,6 @@ class TradingAlgorithm(object):
         order for the difference between the target number of shares and the
         current number of shares.
         """
-        if target == 0.0:
-            self.sellout = True
-        else:
-            self.sellout = False
-            
         if sid in self.portfolio.positions:
             current_position = self.portfolio.positions[sid].amount
             current_pending_orders = self.get_open_orders(sid)
@@ -918,11 +921,7 @@ class TradingAlgorithm(object):
         order for the difference between the target value and the
         current value.
         """
-        if target == 0.0:
-            self.sellout = True
-        else:
-            self.sellout = False
-            
+
         last_price = self.trading_client.current_data[sid].price
         if np.isnan(last_price) or np.allclose(last_price, 0):
             # Don't place an order
@@ -947,11 +946,6 @@ class TradingAlgorithm(object):
 
         Note that target must expressed as a decimal (0.50 means 50\%).
         """
-        if target == 0.0:
-            self.sellout = True
-        else:
-            self.sellout = False
-            
         target_value = self.portfolio.portfolio_value * target
         return self.order_target_value(sid, target_value,
                                        limit_price=limit_price,
