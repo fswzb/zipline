@@ -157,7 +157,8 @@ class DBProxy:
         res = np.array(res)
         #res2 = self.doQuery(sql2)
         #res2 = np.array(res2)
-        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
+        res = pd.DataFrame(res, columns = ['close', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
+        res['price'] = res['open'].copy()
         #res2 = pd.DataFrame(res2, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
         #res = res.append(res2)
         res.fillna(np.nan, inplace = True)
@@ -165,6 +166,8 @@ class DBProxy:
         res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
         res.index = range(len(res))
         res.ix[:,'dt'] = res['dt'].apply(lambda x: pytz.utc.localize(datetime.strptime(x,r'%Y%m%d')))
+        
+        res.ix[:,'close'] = res['close'].apply(float) 
         
         res.ix[:,'price'] = res['price'].apply(float)    
 
@@ -200,7 +203,8 @@ class DBProxy:
         res = np.array(res)
         #res2 = self.doQuery(sql2)
         #res2 = np.array(res2)
-        res = pd.DataFrame(res, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
+        res = pd.DataFrame(res, columns = ['close', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover', 'sid', 'dt'])
+        res['price'] = res['open'].copy()
         #res2 = pd.DataFrame(res2, columns = ['price', 'high', 'low', 'open', 'ret', 'volume', 'sid', 'dt'])
         #res = res.append(res2)
         res.fillna(np.nan, inplace = True)
@@ -208,6 +212,8 @@ class DBProxy:
         res.dropna(axis=0, how='any',subset=['dt','sid'], inplace=True)
         res.index = range(len(res))
         res.ix[:,'dt'] = res['dt'].apply(lambda x: pytz.utc.localize(datetime.strptime(x,r'%Y%m%d')))
+        
+        res.ix[:,'close'] = res['close'].apply(float)  
         
         res.ix[:,'price'] = res['price'].apply(float)    
 
@@ -226,7 +232,7 @@ class DBProxy:
         res.ix[:,'turnover'] = res['turnover'].apply(float)
         
         res_dict = dict()
-        for field in ['price', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover']:
+        for field in ['price', 'close', 'high', 'low', 'open', 'ret', 'volume', 'mktcap', 'turnover']:
             res_trunc = res.ix[:, ['sid','dt',field]]
             res_p = res_trunc.pivot(index = 'dt', columns = 'sid', values = field)
             res_dict[field] = res_p
